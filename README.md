@@ -28,6 +28,12 @@ npm test
 
 No package install is required for the MVP because it uses Node built-ins only.
 
+## AI Workflow
+
+gstack is the quality workflow for this repo. Use the project guidance in
+`AGENTS.md` for product review, architecture review, design review, QA, security
+checks, and release work.
+
 ## MVP
 
 - Chat simulator for Slack, Telegram, Discord, WhatsApp, and WebChat inputs.
