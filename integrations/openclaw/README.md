@@ -19,7 +19,9 @@ Start a new OpenClaw session after installing so the skill snapshot refreshes.
 Run Grand with a shared secret:
 
 ```bash
-GRAND_OPENCLAW_SECRET=replace-with-a-long-random-secret npm run dev
+cp .env.example .env
+# Edit .env and set GRAND_OPENCLAW_SECRET to a long random value.
+npm run dev
 ```
 
 Make the same values available to OpenClaw:
@@ -28,6 +30,10 @@ Make the same values available to OpenClaw:
 export GRAND_URL=http://127.0.0.1:4173
 export GRAND_OPENCLAW_SECRET=replace-with-a-long-random-secret
 ```
+
+The adapter also reads `.env` from the current working directory or from the
+path in `GRAND_ENV_PATH`, so local one-off adapter tests can use the same
+secret as the server.
 
 ## Adapter Usage
 

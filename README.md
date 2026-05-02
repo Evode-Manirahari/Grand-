@@ -20,6 +20,10 @@ npm run dev
 
 Open http://localhost:4173.
 
+For the OpenClaw bridge, copy `.env.example` to `.env` and set
+`GRAND_OPENCLAW_SECRET` to a long random value before running the server. The
+local server auto-loads `.env`, while committed source keeps secrets out of git.
+
 Run tests:
 
 ```bash

@@ -4,9 +4,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleIncomingChat } from "../../packages/connectors/chat-simulator.mjs";
 import { handleOpenClawEvent, verifyOpenClawSecret } from "../../packages/connectors/openclaw-bridge.mjs";
+import { loadEnvFile } from "../../packages/config/env-file.mjs";
 import { getMetrics, approveTask, rejectTask } from "../../packages/core/task-engine.mjs";
 import { buildTaskReport, loadState, saveState } from "../../packages/reports/report-store.mjs";
 import { runQueuedTasks } from "../../packages/sandbox/safe-runner.mjs";
+
+loadEnvFile();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicRoot = path.join(__dirname, "public");

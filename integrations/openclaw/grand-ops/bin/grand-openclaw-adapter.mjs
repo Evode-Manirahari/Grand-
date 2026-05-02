@@ -1,8 +1,12 @@
 #!/usr/bin/env node
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { spawn } from "node:child_process";
 import http from "node:http";
 import https from "node:https";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+loadAdapterEnv();
 
 export function parseAdapterArgs(argv) {
   const options = {
@@ -231,6 +235,56 @@ function requireValue(argv, index, flag) {
   }
 
   return value;
+}
+
+function loadAdapterEnv() {
+  const binDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    process.env.GRAND_ENV_PATH,
+    path.join(process.cwd(), ".env"),
+    path.resolve(binDir, "../../../../.env")
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      applyEnvFile(candidate);
+      return;
+    }
+  }
+}
+
+function applyEnvFile(filePath) {
+  const raw = readFileSync(filePath, "utf8");
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const match = trimmed.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+    if (!match || process.env[match[1]] !== undefined) continue;
+
+    process.env[match[1]] = parseEnvValue(match[2]);
+  }
+}
+
+function parseEnvValue(rawValue) {
+  const value = rawValue.trim();
+
+  if (value.startsWith('"') && value.endsWith('"')) {
+    return value
+      .slice(1, -1)
+      .replace(/\\n/g, "\n")
+      .replace(/\\r/g, "\r")
+      .replace(/\\t/g, "\t")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\");
+  }
+
+  if (value.startsWith("'") && value.endsWith("'")) {
+    return value.slice(1, -1);
+  }
+
+  return value.replace(/\s+#.*$/, "").trim();
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
