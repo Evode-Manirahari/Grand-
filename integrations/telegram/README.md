@@ -43,6 +43,7 @@ grand status
 grand report
 grand next
 grand github sync
+grand github issue <title>
 grand list
 grand list approvals
 grand task <task-id>
@@ -61,6 +62,10 @@ Grand tasks. You can override the repo inline:
 ```text
 grand github sync owner/repo
 ```
+
+`grand github issue <title>` creates a GitHub issue in `GRAND_GITHUB_REPO` and
+tracks it as a Grand task. Issue creation requires `GITHUB_TOKEN` or `GH_TOKEN`
+in Grand's local environment.
 
 ## Background Services
 

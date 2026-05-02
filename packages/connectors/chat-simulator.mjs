@@ -6,7 +6,7 @@ import {
   rejectTask,
   requireTask
 } from "../core/task-engine.mjs";
-import { syncGitHubIssuesToTasks } from "./github-issues.mjs";
+import { createGitHubIssueTask, syncGitHubIssuesToTasks } from "./github-issues.mjs";
 import { runQueuedTasks } from "../sandbox/safe-runner.mjs";
 
 export function handleIncomingChat(state, incoming, options = {}) {
@@ -107,6 +107,10 @@ function handleGrandCommand(state, command, actor, options) {
     throw new Error("GitHub sync is available through the running Grand server. Use: grand github sync owner/repo");
   }
 
+  if (command.name === "github_issue") {
+    throw new Error("GitHub issue creation is available through the running Grand server. Use: grand github issue <title>");
+  }
+
   if (command.name === "list") {
     const tasks = selectTasksForList(state.tasks, command.filter);
 
@@ -190,6 +194,29 @@ async function handleGrandCommandAsync(state, command, actor, options) {
     };
   }
 
+  if (command.name === "github_issue") {
+    const result = await createGitHubIssueTask(
+      state,
+      {
+        repo: command.repo || options.github?.repo,
+        title: command.title,
+        body: formatGitHubIssueBody(command.title, actor),
+        labels: options.github?.createLabels
+      },
+      {
+        ...options.github,
+        clock: options.clock
+      }
+    );
+
+    return {
+      kind: "github_issue_created",
+      result,
+      metrics: getMetrics(state),
+      reply: formatGitHubIssueCreatedReply(result)
+    };
+  }
+
   return handleGrandCommand(state, command, actor, options);
 }
 
@@ -261,12 +288,17 @@ function normalizeGrandCommand(rawName, rawArgument) {
 
   if (name === "github" || name === "gh") {
     const [action = "sync", ...rest] = words;
+    const normalizedAction = action.toLowerCase();
 
-    if (action.toLowerCase() === "sync") {
+    if (normalizedAction === "sync") {
       return {
         name: "github_sync",
         repo: rest[0] || null
       };
+    }
+
+    if (normalizedAction === "issue" || normalizedAction === "create" || normalizedAction === "new") {
+      return parseGitHubIssueCommand(rest);
     }
 
     return {
@@ -279,6 +311,14 @@ function normalizeGrandCommand(rawName, rawArgument) {
     return {
       name: "github_sync",
       repo: words[1] || null
+    };
+  }
+
+  if (name === "issue") {
+    return {
+      name: "github_issue",
+      repo: null,
+      title: rawArgument.trim()
     };
   }
 
@@ -299,6 +339,19 @@ function normalizeGrandCommand(rawName, rawArgument) {
   return {
     name,
     rawArgument
+  };
+}
+
+function parseGitHubIssueCommand(words) {
+  const [maybeRepo, ...rest] = words;
+  const hasInlineRepo = maybeRepo?.includes("/") || /^https:\/\/github\.com\//i.test(maybeRepo || "");
+  const repo = hasInlineRepo ? maybeRepo : null;
+  const title = (hasInlineRepo ? rest : words).join(" ").trim();
+
+  return {
+    name: "github_issue",
+    repo,
+    title
   };
 }
 
@@ -439,6 +492,23 @@ function formatGitHubSyncReply(result) {
   return lines.join("\n");
 }
 
+function formatGitHubIssueCreatedReply(result) {
+  return [
+    `GitHub issue created: ${result.repo}#${result.issue.number}`,
+    result.issue.html_url,
+    `Tracked as ${result.task.id}: ${result.task.title}`,
+    `Inspect: grand task ${result.task.id}`
+  ].join("\n");
+}
+
+function formatGitHubIssueBody(title, actor) {
+  return [
+    title,
+    "",
+    `Created by Grand from Telegram for ${actor}.`
+  ].join("\n");
+}
+
 function formatRunReply(results, state) {
   if (results.length === 0) {
     return "No queued work was ready.";
@@ -468,6 +538,7 @@ function formatHelpReply() {
     "grand report",
     "grand next",
     "grand github sync",
+    "grand github issue <title>",
     "grand list",
     "grand list approvals",
     "grand task <task-id>",

@@ -122,6 +122,7 @@ grand status
 grand report
 grand next
 grand github sync
+grand github issue <title>
 grand list
 grand list approvals
 grand task <task-id>

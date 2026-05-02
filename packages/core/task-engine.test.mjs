@@ -67,6 +67,16 @@ test("chat commands parse compact Grand actions", () => {
     name: "github_sync",
     repo: "Evode-Manirahari/Grand-"
   });
+  assert.deepEqual(parseGrandCommand("grand github issue Evode-Manirahari/Grand- Add billing dashboard"), {
+    name: "github_issue",
+    repo: "Evode-Manirahari/Grand-",
+    title: "Add billing dashboard"
+  });
+  assert.deepEqual(parseGrandCommand("grand issue Add onboarding checklist"), {
+    name: "github_issue",
+    repo: null,
+    title: "Add onboarding checklist"
+  });
 });
 
 test("connector creates tasks for normal messages", () => {
@@ -193,6 +203,36 @@ test("connector syncs GitHub issues from chat", async () => {
   assert.equal(synced.kind, "github_sync");
   assert.match(synced.reply, /1 open issue scanned/);
   assert.match(synced.reply, /1 new task/);
+  assert.equal(state.tasks[0].source.channel, "github");
+});
+
+test("connector creates GitHub issues from chat", async () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const created = await handleIncomingChatAsync(
+    state,
+    {
+      channel: "telegram",
+      from: "owner",
+      text: "grand github issue Add onboarding checklist"
+    },
+    {
+      github: {
+        repo: "Evode-Manirahari/Grand-",
+        createIssue: async (repo, input) => ({
+          number: 13,
+          title: input.title,
+          body: input.body,
+          html_url: `https://github.com/${repo}/issues/13`,
+          user: { login: "owner" }
+        })
+      },
+      clock: new Date("2026-05-02T12:01:00Z")
+    }
+  );
+
+  assert.equal(created.kind, "github_issue_created");
+  assert.match(created.reply, /GitHub issue created/);
+  assert.match(created.reply, /issues\/13/);
   assert.equal(state.tasks[0].source.channel, "github");
 });
 

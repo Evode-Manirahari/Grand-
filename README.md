@@ -60,6 +60,7 @@ grand status
 grand report
 grand next
 grand github sync
+grand github issue <title>
 grand list
 grand list approvals
 grand task <task-id>
@@ -76,6 +77,7 @@ grand done <task-id>
 - Direct Telegram bot bridge for a working first production-style channel.
 - Telegram command surface for listing, approving, rejecting, and running work.
 - GitHub Issues sync that imports open issues as deduped Grand tasks.
+- GitHub issue creation from Telegram when `GITHUB_TOKEN` or `GH_TOKEN` is configured.
 - Task engine that extracts work from inbound messages.
 - Approval states for risky actions such as refunds, payments, sends, deletes,
   purchases, exports, and external changes.
