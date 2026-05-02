@@ -39,6 +39,9 @@ checks, and release work.
 See `docs/openclaw-bridge.md` for the authenticated event endpoint, payload
 shape, response format, and manual test command.
 
+The OpenClaw skill and adapter live in `integrations/openclaw/grand-ops`.
+Install instructions are in `integrations/openclaw/README.md`.
+
 ## MVP
 
 - Chat simulator for Slack, Telegram, Discord, WhatsApp, and WebChat inputs.
