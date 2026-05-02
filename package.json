@@ -1,0 +1,15 @@
+{
+  "name": "grand-ops",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Grand Ops turns business chat messages into tracked, approved, auditable AI work.",
+  "scripts": {
+    "dev": "node apps/web/server.mjs",
+    "start": "node apps/web/server.mjs",
+    "test": "node --test packages/**/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

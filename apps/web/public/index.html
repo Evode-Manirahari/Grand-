@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Grand Ops</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Grand Ops</p>
+          <h1>Chat Work Queue</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="refreshButton" type="button" title="Refresh">↻</button>
+          <button class="primary-button" id="runButton" type="button">Run Queue</button>
+        </div>
+      </header>
+
+      <section class="metrics" aria-label="Queue metrics">
+        <article class="metric">
+          <span>Total</span>
+          <strong id="metricTotal">0</strong>
+        </article>
+        <article class="metric">
+          <span>Queued</span>
+          <strong id="metricQueued">0</strong>
+        </article>
+        <article class="metric warning">
+          <span>Approval</span>
+          <strong id="metricApproval">0</strong>
+        </article>
+        <article class="metric success">
+          <span>Completed</span>
+          <strong id="metricCompleted">0</strong>
+        </article>
+        <article class="metric danger">
+          <span>Blocked</span>
+          <strong id="metricBlocked">0</strong>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <aside class="message-panel">
+          <div class="panel-heading">
+            <h2>Inbound Message</h2>
+          </div>
+          <form id="messageForm" class="message-form">
+            <label>
+              <span>Channel</span>
+              <select id="channelInput" name="channel">
+                <option value="slack">Slack</option>
+                <option value="telegram">Telegram</option>
+                <option value="discord">Discord</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="webchat">WebChat</option>
+              </select>
+            </label>
+            <label>
+              <span>From</span>
+              <input id="fromInput" name="from" value="operator" autocomplete="off" />
+            </label>
+            <label>
+              <span>Message</span>
+              <textarea id="textInput" name="text" rows="7">Summarize today's open customer requests and draft a follow-up checklist for tomorrow.</textarea>
+            </label>
+            <button class="primary-button full" type="submit">Add Message</button>
+          </form>
+          <div class="reply" id="lastReply">Ready</div>
+        </aside>
+
+        <section class="queue-area">
+          <div class="panel-heading">
+            <h2>Tasks</h2>
+            <span id="updatedAt">Not loaded</span>
+          </div>
+          <div class="task-columns" id="taskColumns"></div>
+        </section>
+
+        <aside class="audit-panel">
+          <div class="panel-heading">
+            <h2>Audit</h2>
+          </div>
+          <ol class="event-list" id="eventList"></ol>
+        </aside>
+      </section>
+    </main>
+
+    <dialog id="reportDialog">
+      <div class="dialog-heading">
+        <h2>Task Report</h2>
+        <button class="icon-button" id="closeReportButton" type="button" title="Close">×</button>
+      </div>
+      <pre id="reportOutput"></pre>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
