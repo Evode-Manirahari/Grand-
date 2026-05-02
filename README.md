@@ -59,6 +59,7 @@ Useful Telegram commands:
 grand status
 grand report
 grand next
+grand github sync
 grand list
 grand list approvals
 grand task <task-id>
@@ -74,6 +75,7 @@ grand done <task-id>
 - Authenticated OpenClaw event bridge at `POST /api/openclaw/events`.
 - Direct Telegram bot bridge for a working first production-style channel.
 - Telegram command surface for listing, approving, rejecting, and running work.
+- GitHub Issues sync that imports open issues as deduped Grand tasks.
 - Task engine that extracts work from inbound messages.
 - Approval states for risky actions such as refunds, payments, sends, deletes,
   purchases, exports, and external changes.

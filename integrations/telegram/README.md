@@ -42,6 +42,7 @@ and start from the next new message.
 grand status
 grand report
 grand next
+grand github sync
 grand list
 grand list approvals
 grand task <task-id>
@@ -53,6 +54,13 @@ grand done <task-id>
 
 Normal messages become Grand tasks. Risky tasks, such as refunds or customer
 messages, reply with the task ID plus approve/reject commands.
+
+`grand github sync` imports open GitHub issues from `GRAND_GITHUB_REPO` as
+Grand tasks. You can override the repo inline:
+
+```text
+grand github sync owner/repo
+```
 
 ## Background Services
 

@@ -6,6 +6,7 @@ import {
   rejectTask,
   requireTask
 } from "../core/task-engine.mjs";
+import { syncGitHubIssuesToTasks } from "./github-issues.mjs";
 import { runQueuedTasks } from "../sandbox/safe-runner.mjs";
 
 export function handleIncomingChat(state, incoming, options = {}) {
@@ -24,6 +25,30 @@ export function handleIncomingChat(state, incoming, options = {}) {
 
   try {
     return handleGrandCommand(state, command, actor, options);
+  } catch (error) {
+    return {
+      kind: "command_error",
+      reply: error.message
+    };
+  }
+}
+
+export async function handleIncomingChatAsync(state, incoming, options = {}) {
+  const command = parseGrandCommand(incoming.text);
+  const actor = incoming.from || "operator";
+
+  if (!command) {
+    const task = createTaskFromMessage(state, incoming, options);
+
+    return {
+      kind: "task_created",
+      task,
+      reply: formatTaskReply(task)
+    };
+  }
+
+  try {
+    return await handleGrandCommandAsync(state, command, actor, options);
   } catch (error) {
     return {
       kind: "command_error",
@@ -76,6 +101,10 @@ function handleGrandCommand(state, command, actor, options) {
       task,
       reply: formatTaskDetailReply(task)
     };
+  }
+
+  if (command.name === "github_sync") {
+    throw new Error("GitHub sync is available through the running Grand server. Use: grand github sync owner/repo");
   }
 
   if (command.name === "list") {
@@ -145,6 +174,25 @@ function handleGrandCommand(state, command, actor, options) {
   };
 }
 
+async function handleGrandCommandAsync(state, command, actor, options) {
+  if (command.name === "github_sync") {
+    const result = await syncGitHubIssuesToTasks(state, {
+      ...options.github,
+      repo: command.repo || options.github?.repo,
+      clock: options.clock
+    });
+
+    return {
+      kind: "github_sync",
+      result,
+      metrics: getMetrics(state),
+      reply: formatGitHubSyncReply(result)
+    };
+  }
+
+  return handleGrandCommand(state, command, actor, options);
+}
+
 export function parseGrandCommand(text) {
   const cleaned = text.trim();
   const prefixed = cleaned.match(/^\/?grand(?:\s+(.+))?$/i);
@@ -193,6 +241,7 @@ function formatStatusReply(metrics) {
 
 function normalizeGrandCommand(rawName, rawArgument) {
   const name = rawName.toLowerCase();
+  const words = rawArgument.trim().split(/\s+/).filter(Boolean);
 
   if (name === "help" || name === "status" || name === "run" || name === "next") {
     return { name, taskId: null };
@@ -207,6 +256,29 @@ function normalizeGrandCommand(rawName, rawArgument) {
       name: "list",
       filter: normalizeListFilter(rawArgument),
       taskId: null
+    };
+  }
+
+  if (name === "github" || name === "gh") {
+    const [action = "sync", ...rest] = words;
+
+    if (action.toLowerCase() === "sync") {
+      return {
+        name: "github_sync",
+        repo: rest[0] || null
+      };
+    }
+
+    return {
+      name: "github",
+      rawArgument
+    };
+  }
+
+  if (name === "sync" && (words[0]?.toLowerCase() === "github" || words[0]?.toLowerCase() === "gh")) {
+    return {
+      name: "github_sync",
+      repo: words[1] || null
     };
   }
 
@@ -348,6 +420,25 @@ function formatTaskDetailReply(task) {
   return lines.join("\n");
 }
 
+function formatGitHubSyncReply(result) {
+  const lines = [
+    `GitHub sync: ${result.repo}`,
+    `${result.seen} open issue${result.seen === 1 ? "" : "s"} scanned · ${result.created.length} new task${result.created.length === 1 ? "" : "s"} · ${result.skipped.length} already tracked`
+  ];
+
+  if (result.created.length > 0) {
+    lines.push("New tasks:");
+    for (const item of result.created.slice(0, 5)) {
+      lines.push(`${item.task.id} · #${item.issue.number} · ${item.task.title}`);
+      lines.push(`Inspect: grand task ${item.task.id}`);
+    }
+  } else {
+    lines.push("No new GitHub issue tasks.");
+  }
+
+  return lines.join("\n");
+}
+
 function formatRunReply(results, state) {
   if (results.length === 0) {
     return "No queued work was ready.";
@@ -376,6 +467,7 @@ function formatHelpReply() {
     "grand status",
     "grand report",
     "grand next",
+    "grand github sync",
     "grand list",
     "grand list approvals",
     "grand task <task-id>",

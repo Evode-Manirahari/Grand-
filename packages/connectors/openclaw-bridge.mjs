@@ -1,9 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
-import { handleIncomingChat } from "./chat-simulator.mjs";
+import { handleIncomingChatAsync } from "./chat-simulator.mjs";
 
-export function handleOpenClawEvent(state, event, options = {}) {
+export async function handleOpenClawEvent(state, event, options = {}) {
   const normalized = normalizeOpenClawEvent(event);
-  const result = handleIncomingChat(state, normalized.incoming, {
+  const result = await handleIncomingChatAsync(state, normalized.incoming, {
     ...options,
     clock: normalized.receivedAt ?? options.clock
   });

@@ -6,7 +6,7 @@ import {
   createTaskFromMessage,
   getMetrics
 } from "./task-engine.mjs";
-import { handleIncomingChat, parseGrandCommand } from "../connectors/chat-simulator.mjs";
+import { handleIncomingChat, handleIncomingChatAsync, parseGrandCommand } from "../connectors/chat-simulator.mjs";
 import { runQueuedTasks } from "../sandbox/safe-runner.mjs";
 
 test("safe messages become queued tasks", () => {
@@ -62,6 +62,10 @@ test("chat commands parse compact Grand actions", () => {
   assert.deepEqual(parseGrandCommand("grand show task_1"), {
     name: "task",
     taskId: "task_1"
+  });
+  assert.deepEqual(parseGrandCommand("grand github sync Evode-Manirahari/Grand-"), {
+    name: "github_sync",
+    repo: "Evode-Manirahari/Grand-"
   });
 });
 
@@ -160,6 +164,36 @@ test("connector shows task detail from chat", () => {
   assert.equal(detail.kind, "task_detail");
   assert.match(detail.reply, new RegExp(created.task.id));
   assert.match(detail.reply, /Status: queued/);
+});
+
+test("connector syncs GitHub issues from chat", async () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const synced = await handleIncomingChatAsync(
+    state,
+    {
+      channel: "telegram",
+      from: "owner",
+      text: "grand github sync Evode-Manirahari/Grand-"
+    },
+    {
+      github: {
+        fetchIssues: async () => [
+          {
+            number: 12,
+            title: "Create billing dashboard",
+            html_url: "https://github.com/Evode-Manirahari/Grand-/issues/12",
+            user: { login: "founder" }
+          }
+        ]
+      },
+      clock: new Date("2026-05-02T12:01:00Z")
+    }
+  );
+
+  assert.equal(synced.kind, "github_sync");
+  assert.match(synced.reply, /1 open issue scanned/);
+  assert.match(synced.reply, /1 new task/);
+  assert.equal(state.tasks[0].source.channel, "github");
 });
 
 test("connector returns friendly task command errors", () => {

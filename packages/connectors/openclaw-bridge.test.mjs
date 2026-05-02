@@ -38,9 +38,9 @@ test("normalizes canonical OpenClaw message events", () => {
   assert.equal(normalized.receivedAt.toISOString(), "2026-05-02T12:00:00.000Z");
 });
 
-test("handles OpenClaw events through the Grand task engine", () => {
+test("handles OpenClaw events through the Grand task engine", async () => {
   const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
-  const bridgeResult = handleOpenClawEvent(state, {
+  const bridgeResult = await handleOpenClawEvent(state, {
     channel: "telegram",
     from: "ops-lead",
     message: {
@@ -59,16 +59,16 @@ test("handles OpenClaw events through the Grand task engine", () => {
   assert.match(bridgeResult.reply.text, /needs approval/);
 });
 
-test("routes approval commands from OpenClaw", () => {
+test("routes approval commands from OpenClaw", async () => {
   const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
-  const created = handleOpenClawEvent(state, {
+  const created = await handleOpenClawEvent(state, {
     channel: "slack",
     from: "ops-lead",
     message: {
       text: "Refund INV-1042 and send a short update."
     }
   });
-  const approved = handleOpenClawEvent(state, {
+  const approved = await handleOpenClawEvent(state, {
     channel: "slack",
     from: "owner",
     message: {

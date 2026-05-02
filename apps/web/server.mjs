@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleIncomingChat } from "../../packages/connectors/chat-simulator.mjs";
+import { handleIncomingChatAsync } from "../../packages/connectors/chat-simulator.mjs";
 import { handleOpenClawEvent, verifyOpenClawSecret } from "../../packages/connectors/openclaw-bridge.mjs";
 import { loadEnvFile } from "../../packages/config/env-file.mjs";
 import { getMetrics, approveTask, rejectTask } from "../../packages/core/task-engine.mjs";
@@ -60,7 +60,11 @@ async function handleApi(request, response, url) {
     try {
       const body = await readBody(request);
       const events = Array.isArray(body.events) ? body.events : [body];
-      const results = events.map((event) => handleOpenClawEvent(state, event));
+      const results = [];
+
+      for (const event of events) {
+        results.push(await handleOpenClawEvent(state, event, grandOptions()));
+      }
 
       await saveState(statePath, state);
       sendJson(response, 202, {
@@ -79,12 +83,16 @@ async function handleApi(request, response, url) {
 
   if (request.method === "POST" && url.pathname === "/api/messages") {
     const body = await readBody(request);
-    const result = handleIncomingChat(state, {
-      channel: body.channel || "webchat",
-      from: body.from || "operator",
-      text: requireText(body.text),
-      url: body.url || null
-    });
+    const result = await handleIncomingChatAsync(
+      state,
+      {
+        channel: body.channel || "webchat",
+        from: body.from || "operator",
+        text: requireText(body.text),
+        url: body.url || null
+      },
+      grandOptions()
+    );
     await saveState(statePath, state);
     sendJson(response, 201, {
       result,
@@ -179,6 +187,16 @@ function publicState() {
   return {
     ...state,
     metrics: getMetrics(state)
+  };
+}
+
+function grandOptions() {
+  return {
+    github: {
+      repo: process.env.GRAND_GITHUB_REPO || "Evode-Manirahari/Grand-",
+      token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "",
+      limit: process.env.GRAND_GITHUB_LIMIT || 10
+    }
   };
 }
 
