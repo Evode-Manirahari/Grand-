@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleIncomingChat } from "../../packages/connectors/chat-simulator.mjs";
+import { handleOpenClawEvent, verifyOpenClawSecret } from "../../packages/connectors/openclaw-bridge.mjs";
 import { getMetrics, approveTask, rejectTask } from "../../packages/core/task-engine.mjs";
 import { buildTaskReport, loadState, saveState } from "../../packages/reports/report-store.mjs";
 import { runQueuedTasks } from "../../packages/sandbox/safe-runner.mjs";
@@ -39,6 +40,37 @@ server.listen(port, host, () => {
 async function handleApi(request, response, url) {
   if (request.method === "GET" && url.pathname === "/api/state") {
     sendJson(response, 200, publicState());
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/openclaw/events") {
+    const auth = verifyOpenClawSecret(request.headers, process.env.GRAND_OPENCLAW_SECRET);
+
+    if (!auth.ok) {
+      sendJson(response, 401, {
+        error: "OpenClaw bridge authentication failed",
+        reason: auth.reason
+      });
+      return;
+    }
+
+    try {
+      const body = await readBody(request);
+      const events = Array.isArray(body.events) ? body.events : [body];
+      const results = events.map((event) => handleOpenClawEvent(state, event));
+
+      await saveState(statePath, state);
+      sendJson(response, 202, {
+        auth,
+        results,
+        state: publicState()
+      });
+    } catch (error) {
+      sendJson(response, 400, {
+        error: error.message
+      });
+    }
+
     return;
   }
 

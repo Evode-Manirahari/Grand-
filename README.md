@@ -34,9 +34,15 @@ gstack is the quality workflow for this repo. Use the project guidance in
 `AGENTS.md` for product review, architecture review, design review, QA, security
 checks, and release work.
 
+## OpenClaw Bridge
+
+See `docs/openclaw-bridge.md` for the authenticated event endpoint, payload
+shape, response format, and manual test command.
+
 ## MVP
 
 - Chat simulator for Slack, Telegram, Discord, WhatsApp, and WebChat inputs.
+- Authenticated OpenClaw event bridge at `POST /api/openclaw/events`.
 - Task engine that extracts work from inbound messages.
 - Approval states for risky actions such as refunds, payments, sends, deletes,
   purchases, exports, and external changes.
@@ -65,7 +71,7 @@ data/                  local runtime state
 
 ## Next Build Steps
 
-1. Replace the chat simulator with OpenClaw channel events.
+1. Connect an OpenClaw skill or adapter to `POST /api/openclaw/events`.
 2. Replace the simulated runner with NemoClaw/OpenShell-managed execution.
 3. Publish task reports to a separate state repository.
 4. Add real integrations for Gmail, Linear/GitHub Issues, Stripe, HubSpot, and

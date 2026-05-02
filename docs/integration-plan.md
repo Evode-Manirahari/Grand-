@@ -9,7 +9,7 @@
 ## Phase 2: OpenClaw Channel Bridge
 
 - Create an OpenClaw skill or gateway adapter that forwards inbound messages to
-  Grand's `/api/messages` endpoint.
+  Grand's `/api/openclaw/events` endpoint.
 - Route Grand responses back to the original channel.
 - Map channel users to Grand users and teams.
 
