@@ -8,6 +8,7 @@
     "dev": "node apps/web/server.mjs",
     "start": "node apps/web/server.mjs",
     "openclaw:adapter": "node integrations/openclaw/grand-ops/bin/grand-openclaw-adapter.mjs",
+    "telegram:bridge": "node integrations/telegram/grand-telegram-bridge.mjs",
     "test": "node --test packages/**/*.test.mjs"
   },
   "engines": {
