@@ -55,6 +55,14 @@ test("chat commands parse compact Grand actions", () => {
     filter: "needs_approval",
     taskId: null
   });
+  assert.deepEqual(parseGrandCommand("grand report"), {
+    name: "report",
+    taskId: null
+  });
+  assert.deepEqual(parseGrandCommand("grand show task_1"), {
+    name: "task",
+    taskId: "task_1"
+  });
 });
 
 test("connector creates tasks for normal messages", () => {
@@ -109,6 +117,49 @@ test("connector runs queued tasks from chat", () => {
   assert.equal(created.task.status, "completed");
   assert.equal(run.kind, "tasks_run");
   assert.match(run.reply, /1 completed/);
+});
+
+test("connector reports current work and next actions", () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const approval = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "Refund customer INV-1042 and send them an update."
+  });
+  const report = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "grand report"
+  });
+  const next = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "grand next"
+  });
+
+  assert.equal(report.kind, "report");
+  assert.match(report.reply, /Grand report/);
+  assert.match(report.reply, new RegExp(approval.task.id));
+  assert.equal(next.kind, "next_actions");
+  assert.match(next.reply, new RegExp(`Approve: grand approve ${approval.task.id}`));
+});
+
+test("connector shows task detail from chat", () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const created = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "Summarize customer feedback for today."
+  });
+  const detail = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: `grand task ${created.task.id}`
+  });
+
+  assert.equal(detail.kind, "task_detail");
+  assert.match(detail.reply, new RegExp(created.task.id));
+  assert.match(detail.reply, /Status: queued/);
 });
 
 test("connector returns friendly task command errors", () => {

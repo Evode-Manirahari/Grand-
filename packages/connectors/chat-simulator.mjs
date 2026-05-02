@@ -3,7 +3,8 @@ import {
   completeTask,
   createTaskFromMessage,
   getMetrics,
-  rejectTask
+  rejectTask,
+  requireTask
 } from "../core/task-engine.mjs";
 import { runQueuedTasks } from "../sandbox/safe-runner.mjs";
 
@@ -46,6 +47,34 @@ function handleGrandCommand(state, command, actor, options) {
       kind: "status",
       metrics,
       reply: formatStatusReply(metrics)
+    };
+  }
+
+  if (command.name === "report") {
+    const metrics = getMetrics(state);
+
+    return {
+      kind: "report",
+      metrics,
+      reply: formatReportReply(state, metrics)
+    };
+  }
+
+  if (command.name === "next") {
+    return {
+      kind: "next_actions",
+      reply: formatNextReply(state)
+    };
+  }
+
+  if (command.name === "task") {
+    requireCommandTaskId(command, "task");
+    const task = requireTask(state, command.taskId);
+
+    return {
+      kind: "task_detail",
+      task,
+      reply: formatTaskDetailReply(task)
     };
   }
 
@@ -165,8 +194,12 @@ function formatStatusReply(metrics) {
 function normalizeGrandCommand(rawName, rawArgument) {
   const name = rawName.toLowerCase();
 
-  if (name === "help" || name === "status" || name === "run") {
+  if (name === "help" || name === "status" || name === "run" || name === "next") {
     return { name, taskId: null };
+  }
+
+  if (name === "report" || name === "brief" || name === "summary") {
+    return { name: "report", taskId: null };
   }
 
   if (name === "list" || name === "ls") {
@@ -174,6 +207,13 @@ function normalizeGrandCommand(rawName, rawArgument) {
       name: "list",
       filter: normalizeListFilter(rawArgument),
       taskId: null
+    };
+  }
+
+  if (name === "task" || name === "show") {
+    return {
+      name: "task",
+      taskId: rawArgument.trim() || null
     };
   }
 
@@ -230,6 +270,84 @@ function formatTaskListReply(tasks, filter = "open") {
   return lines.join("\n");
 }
 
+function formatReportReply(state, metrics) {
+  const lines = ["Grand report", formatStatusReply(metrics)];
+  const openTasks = selectTasksForList(state.tasks, "open");
+  const recentCompleted = selectTasksForList(state.tasks, "completed").slice(0, 3);
+
+  if (openTasks.length > 0) {
+    lines.push("Needs attention:");
+    for (const task of openTasks.slice(0, 5)) {
+      lines.push(`${task.id} · ${formatStatus(task.status)} · ${task.title}`);
+    }
+  } else {
+    lines.push("No open work.");
+  }
+
+  if (recentCompleted.length > 0) {
+    lines.push("Recent completions:");
+    for (const task of recentCompleted) {
+      lines.push(`${task.id} · ${task.runner.result?.summary || task.title}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatNextReply(state) {
+  const approvals = selectTasksForList(state.tasks, "needs_approval");
+  if (approvals.length > 0) {
+    const task = approvals[0];
+    return [
+      `Next: review ${task.id}`,
+      task.title,
+      `Approve: grand approve ${task.id}`,
+      `Reject: grand reject ${task.id}`
+    ].join("\n");
+  }
+
+  const queued = selectTasksForList(state.tasks, "queued");
+  if (queued.length > 0) {
+    return `Next: run ${queued.length} queued task${queued.length === 1 ? "" : "s"} with: grand run`;
+  }
+
+  const blocked = selectTasksForList(state.tasks, "blocked");
+  if (blocked.length > 0) {
+    return `Next: review ${blocked.length} blocked task${blocked.length === 1 ? "" : "s"} with: grand list blocked`;
+  }
+
+  return "No open work. Send Grand a customer, ops, or research request.";
+}
+
+function formatTaskDetailReply(task) {
+  const lines = [
+    `${task.id}`,
+    `Status: ${formatStatus(task.status)}`,
+    `Title: ${task.title}`,
+    `Source: ${task.source.channel} from ${task.source.from}`,
+    `Risk: ${task.risk.level} (${task.risk.reasons.join(", ")})`
+  ];
+
+  if (task.due) {
+    lines.push(`Due: ${task.due}`);
+  }
+
+  if (task.status === "needs_approval") {
+    lines.push(`Approve: grand approve ${task.id}`);
+    lines.push(`Reject: grand reject ${task.id}`);
+  }
+
+  if (task.status === "queued") {
+    lines.push("Run queued work with: grand run");
+  }
+
+  if (task.runner.result?.summary) {
+    lines.push(`Result: ${task.runner.result.summary}`);
+  }
+
+  return lines.join("\n");
+}
+
 function formatRunReply(results, state) {
   if (results.length === 0) {
     return "No queued work was ready.";
@@ -256,8 +374,11 @@ function formatHelpReply() {
   return [
     "Grand commands:",
     "grand status",
+    "grand report",
+    "grand next",
     "grand list",
     "grand list approvals",
+    "grand task <task-id>",
     "grand approve <task-id>",
     "grand reject <task-id>",
     "grand run",

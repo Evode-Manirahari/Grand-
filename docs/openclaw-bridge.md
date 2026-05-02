@@ -119,8 +119,11 @@ The bridge routes Grand commands from OpenClaw messages:
 
 ```text
 grand status
+grand report
+grand next
 grand list
 grand list approvals
+grand task <task-id>
 grand approve <task-id>
 grand reject <task-id>
 grand run
