@@ -53,11 +53,24 @@ bot, allowlists trusted Telegram sender IDs, forwards messages into Grand, and
 sends Grand's status or approval reply back to the same chat. Setup details live
 in `integrations/telegram/README.md`.
 
+Useful Telegram commands:
+
+```text
+grand status
+grand list
+grand list approvals
+grand approve <task-id>
+grand reject <task-id>
+grand run
+grand done <task-id>
+```
+
 ## MVP
 
 - Chat simulator for Slack, Telegram, Discord, WhatsApp, and WebChat inputs.
 - Authenticated OpenClaw event bridge at `POST /api/openclaw/events`.
 - Direct Telegram bot bridge for a working first production-style channel.
+- Telegram command surface for listing, approving, rejecting, and running work.
 - Task engine that extracts work from inbound messages.
 - Approval states for risky actions such as refunds, payments, sends, deletes,
   purchases, exports, and external changes.

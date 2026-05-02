@@ -35,3 +35,45 @@ npm run telegram:bridge -- --once
 
 Use `--drop-pending` once if you want the bridge to ignore old Telegram updates
 and start from the next new message.
+
+## Commands
+
+```text
+grand status
+grand list
+grand list approvals
+grand approve <task-id>
+grand reject <task-id>
+grand run
+grand done <task-id>
+```
+
+Normal messages become Grand tasks. Risky tasks, such as refunds or customer
+messages, reply with the task ID plus approve/reject commands.
+
+## Background Services
+
+On this Mac, Grand is managed by launchd with two user LaunchAgents:
+
+```text
+com.grandops.web
+com.grandops.telegram-bridge
+```
+
+Useful local operations:
+
+```bash
+launchctl print gui/501/com.grandops.web
+launchctl print gui/501/com.grandops.telegram-bridge
+launchctl kickstart -k gui/501/com.grandops.web
+launchctl kickstart -k gui/501/com.grandops.telegram-bridge
+```
+
+Logs live in:
+
+```text
+~/.openclaw/logs/grand-web.log
+~/.openclaw/logs/grand-web.err.log
+~/.openclaw/logs/grand-telegram-bridge.log
+~/.openclaw/logs/grand-telegram-bridge.err.log
+```

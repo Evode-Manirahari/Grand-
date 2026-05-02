@@ -50,6 +50,11 @@ test("chat commands parse compact Grand actions", () => {
     name: "approve",
     taskId: "task_1"
   });
+  assert.deepEqual(parseGrandCommand("grand list approvals"), {
+    name: "list",
+    filter: "needs_approval",
+    taskId: null
+  });
 });
 
 test("connector creates tasks for normal messages", () => {
@@ -62,4 +67,65 @@ test("connector creates tasks for normal messages", () => {
 
   assert.equal(result.kind, "task_created");
   assert.equal(state.tasks.length, 1);
+});
+
+test("connector lists approval tasks with actionable commands", () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const created = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "Refund customer INV-1042 and send them an update."
+  });
+  const listed = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "grand list approvals"
+  });
+
+  assert.equal(created.kind, "task_created");
+  assert.match(created.reply, new RegExp(`Approve: grand approve ${created.task.id}`));
+  assert.equal(listed.kind, "task_list");
+  assert.match(listed.reply, new RegExp(created.task.id));
+  assert.match(listed.reply, /Approve: grand approve/);
+});
+
+test("connector runs queued tasks from chat", () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const created = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "Summarize customer feedback for today."
+  });
+  const run = handleIncomingChat(
+    state,
+    {
+      channel: "telegram",
+      from: "owner",
+      text: "grand run"
+    },
+    { clock: new Date("2026-05-02T12:05:00Z") }
+  );
+
+  assert.equal(created.task.status, "completed");
+  assert.equal(run.kind, "tasks_run");
+  assert.match(run.reply, /1 completed/);
+});
+
+test("connector returns friendly task command errors", () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const missingId = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "grand approve"
+  });
+  const unknown = handleIncomingChat(state, {
+    channel: "telegram",
+    from: "owner",
+    text: "grand nope"
+  });
+
+  assert.equal(missingId.kind, "command_error");
+  assert.match(missingId.reply, /grand approve <task-id>/);
+  assert.equal(unknown.kind, "unknown_command");
+  assert.match(unknown.reply, /grand help/);
 });
