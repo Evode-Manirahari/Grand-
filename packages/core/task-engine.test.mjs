@@ -71,6 +71,14 @@ test("chat commands parse compact Grand actions", () => {
     name: "github_status",
     taskId: null
   });
+  assert.deepEqual(parseGrandCommand("grand github drafts"), {
+    name: "github_drafts",
+    taskId: null
+  });
+  assert.deepEqual(parseGrandCommand("grand github publish task_1"), {
+    name: "github_publish",
+    taskId: "task_1"
+  });
   assert.deepEqual(parseGrandCommand("grand github issue Evode-Manirahari/Grand- Add billing dashboard"), {
     name: "github_issue",
     repo: "Evode-Manirahari/Grand-",
@@ -284,7 +292,91 @@ test("connector saves GitHub issue drafts when token is missing", async () => {
   assert.equal(draft.kind, "github_issue_draft");
   assert.match(draft.reply, /draft saved/);
   assert.match(draft.reply, /GITHUB_TOKEN or GH_TOKEN/);
+  assert.match(draft.reply, new RegExp(`grand github publish ${state.tasks[0].id}`));
   assert.equal(state.tasks[0].source.channel, "github");
+});
+
+test("connector lists GitHub issue drafts from chat", async () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const draft = await handleIncomingChatAsync(
+    state,
+    {
+      channel: "telegram",
+      from: "owner",
+      text: "grand github issue Add draft list"
+    },
+    {
+      github: {
+        repo: "Evode-Manirahari/Grand-",
+        token: ""
+      },
+      clock: new Date("2026-05-02T12:02:00Z")
+    }
+  );
+  const listed = await handleIncomingChatAsync(
+    state,
+    {
+      channel: "telegram",
+      from: "owner",
+      text: "grand github drafts"
+    },
+    {
+      github: {
+        repo: "Evode-Manirahari/Grand-",
+        token: ""
+      }
+    }
+  );
+
+  assert.equal(listed.kind, "github_drafts");
+  assert.match(listed.reply, /GitHub issue drafts/);
+  assert.match(listed.reply, new RegExp(draft.result.task.id));
+  assert.match(listed.reply, /grand github publish/);
+});
+
+test("connector publishes GitHub issue drafts from chat", async () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const draft = await handleIncomingChatAsync(
+    state,
+    {
+      channel: "telegram",
+      from: "owner",
+      text: "grand github issue Add publish flow"
+    },
+    {
+      github: {
+        repo: "Evode-Manirahari/Grand-",
+        token: ""
+      },
+      clock: new Date("2026-05-02T12:02:00Z")
+    }
+  );
+  const published = await handleIncomingChatAsync(
+    state,
+    {
+      channel: "telegram",
+      from: "owner",
+      text: `grand github publish ${draft.result.task.id}`
+    },
+    {
+      github: {
+        createIssue: async (repo, input) => ({
+          number: 14,
+          title: input.title,
+          body: input.body,
+          html_url: `https://github.com/${repo}/issues/14`,
+          user: { login: "owner" }
+        })
+      },
+      clock: new Date("2026-05-02T12:03:00Z")
+    }
+  );
+
+  assert.equal(published.kind, "github_issue_published");
+  assert.match(published.reply, /GitHub draft published/);
+  assert.match(published.reply, /issues\/14/);
+  assert.equal(draft.result.task.status, "completed");
+  assert.equal(draft.result.task.source.url, "https://github.com/Evode-Manirahari/Grand-/issues/14");
 });
 
 test("connector returns friendly task command errors", () => {

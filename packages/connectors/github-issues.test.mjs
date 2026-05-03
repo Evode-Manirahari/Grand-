@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createGrandState } from "../core/task-engine.mjs";
-import { createGitHubIssueDraftTask, createGitHubIssueTask, parseGitHubRepo, syncGitHubIssuesToTasks } from "./github-issues.mjs";
+import {
+  createGitHubIssueDraftTask,
+  createGitHubIssueTask,
+  listGitHubIssueDraftTasks,
+  parseGitHubRepo,
+  publishGitHubIssueDraftTask,
+  syncGitHubIssuesToTasks
+} from "./github-issues.mjs";
 
 test("parses GitHub repo references", () => {
   assert.deepEqual(parseGitHubRepo("Evode-Manirahari/Grand-"), {
@@ -99,4 +106,78 @@ test("creates a local GitHub issue draft task", () => {
   assert.equal(result.task.source.channel, "github");
   assert.match(result.task.source.text, /local draft/);
   assert.equal(state.tasks.length, 1);
+});
+
+test("lists local GitHub issue draft tasks", () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  createGitHubIssueDraftTask(
+    state,
+    {
+      repo: "Evode-Manirahari/Grand-",
+      title: "Add draft listing",
+      actor: "owner"
+    },
+    {
+      clock: new Date("2026-05-02T12:10:00Z")
+    }
+  );
+  createGitHubIssueDraftTask(
+    state,
+    {
+      repo: "openclaw/clawsweeper",
+      title: "Add publish command",
+      actor: "owner"
+    },
+    {
+      clock: new Date("2026-05-02T12:11:00Z")
+    }
+  );
+
+  const drafts = listGitHubIssueDraftTasks(state);
+
+  assert.equal(drafts.length, 2);
+  assert.equal(drafts[0].repo, "openclaw/clawsweeper");
+  assert.equal(drafts[0].title, "Add publish command");
+  assert.equal(drafts[1].repo, "Evode-Manirahari/Grand-");
+});
+
+test("publishes a local GitHub issue draft and completes the task", async () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const draft = createGitHubIssueDraftTask(
+    state,
+    {
+      repo: "Evode-Manirahari/Grand-",
+      title: "Add publish command",
+      actor: "owner"
+    },
+    {
+      clock: new Date("2026-05-02T12:10:00Z")
+    }
+  );
+
+  const result = await publishGitHubIssueDraftTask(state, draft.task.id, {
+    createIssue: async (repo, input) => {
+      assert.equal(repo, "Evode-Manirahari/Grand-");
+      assert.equal(input.title, "Add publish command");
+      assert.match(input.body, new RegExp(draft.task.id));
+      return {
+        number: 21,
+        title: input.title,
+        body: input.body,
+        html_url: `https://github.com/${repo}/issues/21`,
+        user: {
+          login: "owner"
+        }
+      };
+    },
+    actor: "owner",
+    clock: new Date("2026-05-02T12:12:00Z")
+  });
+
+  assert.equal(result.repo, "Evode-Manirahari/Grand-");
+  assert.equal(result.issue.number, 21);
+  assert.equal(result.task.status, "completed");
+  assert.equal(result.task.source.url, "https://github.com/Evode-Manirahari/Grand-/issues/21");
+  assert.equal(result.task.runner.result.mode, "github_issue_publish");
+  assert.equal(listGitHubIssueDraftTasks(state).length, 0);
 });

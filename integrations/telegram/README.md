@@ -45,6 +45,8 @@ grand next
 grand github status
 grand github sync
 grand github issue <title>
+grand github drafts
+grand github publish <task-id>
 grand list
 grand list approvals
 grand task <task-id>
@@ -68,6 +70,14 @@ grand github sync owner/repo
 tracks it as a Grand task. Issue creation requires `GITHUB_TOKEN` or `GH_TOKEN`
 in Grand's local environment. Without a token, Grand saves a local issue draft
 task instead of dropping the request.
+
+`grand github drafts` lists local issue drafts that have not been published to
+GitHub yet. After configuring `GITHUB_TOKEN` or `GH_TOKEN`, publish a selected
+draft with:
+
+```text
+grand github publish <task-id>
+```
 
 `grand github status` shows the configured repo, sync readiness, creation
 readiness, and sync limit.

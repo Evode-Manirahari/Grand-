@@ -1,4 +1,4 @@
-import { createTaskFromMessage } from "../core/task-engine.mjs";
+import { completeTask, createTaskFromMessage, requireTask } from "../core/task-engine.mjs";
 
 export function parseGitHubRepo(value) {
   if (typeof value !== "string" || !value.trim()) {
@@ -157,6 +157,66 @@ export function createGitHubIssueDraftTask(state, input, options = {}) {
   };
 }
 
+export function listGitHubIssueDraftTasks(state, options = {}) {
+  const limit = clampLimit(options.limit ?? 8);
+
+  return state.tasks
+    .map((task) => {
+      const draft = getGitHubIssueDraftInfo(task);
+      return draft ? { ...draft, task } : null;
+    })
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+export async function publishGitHubIssueDraftTask(state, taskId, options = {}) {
+  const task = requireTask(state, taskId);
+  const draft = getGitHubIssueDraftInfo(task);
+
+  if (!draft) {
+    throw new Error(`Task ${taskId} is not a local GitHub issue draft.`);
+  }
+
+  if (!options.token && !options.createIssue) {
+    throw new Error("GitHub token required to publish drafts. Set GITHUB_TOKEN or GH_TOKEN.");
+  }
+
+  const parsed = parseGitHubRepo(draft.repo);
+  const createIssue = options.createIssue || createGitHubIssue;
+  const issue = await createIssue(
+    parsed.fullName,
+    {
+      title: draft.title,
+      body: formatDraftIssueBody(task, options.actor),
+      labels: options.createLabels || options.labels
+    },
+    options
+  );
+  const url = issue.html_url || `https://github.com/${parsed.fullName}/issues/${issue.number}`;
+
+  task.title = `GitHub issue #${issue.number} in ${parsed.fullName}: ${issue.title}`;
+  task.source.url = url;
+  task.source.text = formatIssueTaskText(parsed.fullName, issue);
+  task.source.from = issue.user?.login || task.source.from;
+
+  completeTask(
+    state,
+    task.id,
+    {
+      mode: "github_issue_publish",
+      summary: `Created ${parsed.fullName}#${issue.number}`,
+      url
+    },
+    options.clock
+  );
+
+  return {
+    repo: parsed.fullName,
+    issue,
+    task
+  };
+}
+
 export function trackGitHubIssueTask(state, repo, issue, options = {}) {
   const parsed = parseGitHubRepo(repo);
   const url = issue.html_url || `https://github.com/${parsed.fullName}/issues/${issue.number}`;
@@ -186,9 +246,28 @@ export function trackGitHubIssueTask(state, repo, issue, options = {}) {
   };
 }
 
+export function getGitHubIssueDraftInfo(task) {
+  if (!task || task.source?.channel !== "github" || task.source?.url) return null;
+  const match = task.source.text?.match(/^Draft GitHub issue in ([^:]+):\s*(.+)$/m);
+  if (!match) return null;
+
+  return {
+    repo: match[1].trim(),
+    title: match[2].trim()
+  };
+}
+
 function formatIssueTaskText(repo, issue) {
   const body = typeof issue.body === "string" && issue.body.trim() ? `\n\n${issue.body.trim().slice(0, 600)}` : "";
   return `GitHub issue #${issue.number} in ${repo}: ${issue.title}${body}`;
+}
+
+function formatDraftIssueBody(task, actor) {
+  return [
+    `Created from Grand draft ${task.id}${actor ? ` by ${actor}` : ""}.`,
+    "",
+    task.source.text
+  ].join("\n");
 }
 
 function requireIssueTitle(value) {

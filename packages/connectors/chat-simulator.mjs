@@ -6,7 +6,13 @@ import {
   rejectTask,
   requireTask
 } from "../core/task-engine.mjs";
-import { createGitHubIssueDraftTask, createGitHubIssueTask, syncGitHubIssuesToTasks } from "./github-issues.mjs";
+import {
+  createGitHubIssueDraftTask,
+  createGitHubIssueTask,
+  listGitHubIssueDraftTasks,
+  publishGitHubIssueDraftTask,
+  syncGitHubIssuesToTasks
+} from "./github-issues.mjs";
 import { runQueuedTasks } from "../sandbox/safe-runner.mjs";
 
 export function handleIncomingChat(state, incoming, options = {}) {
@@ -114,8 +120,22 @@ function handleGrandCommand(state, command, actor, options) {
     };
   }
 
+  if (command.name === "github_drafts") {
+    const drafts = listGitHubIssueDraftTasks(state);
+
+    return {
+      kind: "github_drafts",
+      drafts,
+      reply: formatGitHubDraftsReply(drafts)
+    };
+  }
+
   if (command.name === "github_issue") {
     throw new Error("GitHub issue creation is available through the running Grand server. Use: grand github issue <title>");
+  }
+
+  if (command.name === "github_publish") {
+    throw new Error("GitHub draft publishing is available through the running Grand server. Use: grand github publish <task-id>");
   }
 
   if (command.name === "list") {
@@ -208,6 +228,16 @@ async function handleGrandCommandAsync(state, command, actor, options) {
     };
   }
 
+  if (command.name === "github_drafts") {
+    const drafts = listGitHubIssueDraftTasks(state);
+
+    return {
+      kind: "github_drafts",
+      drafts,
+      reply: formatGitHubDraftsReply(drafts)
+    };
+  }
+
   if (command.name === "github_issue") {
     if (!options.github?.token && !options.github?.createIssue) {
       const result = createGitHubIssueDraftTask(
@@ -249,6 +279,22 @@ async function handleGrandCommandAsync(state, command, actor, options) {
       result,
       metrics: getMetrics(state),
       reply: formatGitHubIssueCreatedReply(result)
+    };
+  }
+
+  if (command.name === "github_publish") {
+    requireCommandTaskId(command, "github publish");
+    const result = await publishGitHubIssueDraftTask(state, command.taskId, {
+      ...options.github,
+      actor,
+      clock: options.clock
+    });
+
+    return {
+      kind: "github_issue_published",
+      result,
+      metrics: getMetrics(state),
+      reply: formatGitHubIssuePublishedReply(result)
     };
   }
 
@@ -336,6 +382,20 @@ function normalizeGrandCommand(rawName, rawArgument) {
       return {
         name: "github_status",
         taskId: null
+      };
+    }
+
+    if (normalizedAction === "draft" || normalizedAction === "drafts") {
+      return {
+        name: "github_drafts",
+        taskId: null
+      };
+    }
+
+    if (normalizedAction === "publish") {
+      return {
+        name: "github_publish",
+        taskId: rest[0] || null
       };
     }
 
@@ -562,6 +622,31 @@ function formatGitHubIssueDraftReply(result) {
     `GitHub issue draft saved for ${result.repo}`,
     `Task: ${result.task.id} · ${result.task.title}`,
     "Issue creation needs GITHUB_TOKEN or GH_TOKEN.",
+    `Publish later: grand github publish ${result.task.id}`,
+    `Inspect: grand task ${result.task.id}`
+  ].join("\n");
+}
+
+function formatGitHubDraftsReply(drafts) {
+  if (drafts.length === 0) {
+    return "No GitHub issue drafts.";
+  }
+
+  const lines = [`GitHub issue drafts (${drafts.length} shown)`];
+
+  for (const draft of drafts) {
+    lines.push(`${draft.task.id} · ${formatStatus(draft.task.status)} · ${draft.repo} · ${draft.title}`);
+    lines.push(`Publish: grand github publish ${draft.task.id}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGitHubIssuePublishedReply(result) {
+  return [
+    `GitHub draft published: ${result.repo}#${result.issue.number}`,
+    result.task.source.url,
+    `Task ${result.task.id} completed: ${result.task.title}`,
     `Inspect: grand task ${result.task.id}`
   ].join("\n");
 }
@@ -605,6 +690,8 @@ function formatHelpReply() {
     "grand github status",
     "grand github sync",
     "grand github issue <title>",
+    "grand github drafts",
+    "grand github publish <task-id>",
     "grand list",
     "grand list approvals",
     "grand task <task-id>",

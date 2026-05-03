@@ -62,6 +62,8 @@ grand next
 grand github status
 grand github sync
 grand github issue <title>
+grand github drafts
+grand github publish <task-id>
 grand list
 grand list approvals
 grand task <task-id>
@@ -79,7 +81,8 @@ grand done <task-id>
 - Telegram command surface for listing, approving, rejecting, and running work.
 - GitHub Issues sync that imports open issues as deduped Grand tasks.
 - GitHub issue creation from Telegram when `GITHUB_TOKEN` or `GH_TOKEN` is configured.
-- Local GitHub issue drafts when creation auth is not configured yet.
+- Local GitHub issue drafts, listing, and later publish flow when creation auth
+  is not configured yet.
 - Task engine that extracts work from inbound messages.
 - Approval states for risky actions such as refunds, payments, sends, deletes,
   purchases, exports, and external changes.
@@ -108,9 +111,8 @@ data/                  local runtime state
 
 ## Next Build Steps
 
-1. Add a small process supervisor for the Telegram bridge.
-2. Replace the simulated runner with NemoClaw/OpenShell-managed execution.
-3. Publish task reports to a separate state repository.
-4. Add real integrations for Gmail, Linear/GitHub Issues, Stripe, HubSpot, and
+1. Replace the simulated runner with NemoClaw/OpenShell-managed execution.
+2. Publish task reports to a separate state repository.
+3. Add real integrations for Gmail, Linear/GitHub Issues, Stripe, HubSpot, and
    Google Calendar.
-5. Add organization accounts, roles, approval policies, and billing.
+4. Add organization accounts, roles, approval policies, and billing.

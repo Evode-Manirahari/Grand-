@@ -124,6 +124,8 @@ grand next
 grand github status
 grand github sync
 grand github issue <title>
+grand github drafts
+grand github publish <task-id>
 grand list
 grand list approvals
 grand task <task-id>
