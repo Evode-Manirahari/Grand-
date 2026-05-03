@@ -121,6 +121,7 @@ The bridge routes Grand commands from OpenClaw messages:
 grand status
 grand report
 grand next
+grand github status
 grand github sync
 grand github issue <title>
 grand list

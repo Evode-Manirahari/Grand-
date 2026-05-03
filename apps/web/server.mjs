@@ -191,10 +191,13 @@ function publicState() {
 }
 
 function grandOptions() {
+  const githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
+
   return {
     github: {
       repo: process.env.GRAND_GITHUB_REPO || "Evode-Manirahari/Grand-",
-      token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "",
+      token: githubToken,
+      tokenSource: process.env.GITHUB_TOKEN ? "GITHUB_TOKEN" : process.env.GH_TOKEN ? "GH_TOKEN" : "",
       limit: process.env.GRAND_GITHUB_LIMIT || 10
     }
   };

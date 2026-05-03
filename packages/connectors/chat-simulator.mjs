@@ -6,7 +6,7 @@ import {
   rejectTask,
   requireTask
 } from "../core/task-engine.mjs";
-import { createGitHubIssueTask, syncGitHubIssuesToTasks } from "./github-issues.mjs";
+import { createGitHubIssueDraftTask, createGitHubIssueTask, syncGitHubIssuesToTasks } from "./github-issues.mjs";
 import { runQueuedTasks } from "../sandbox/safe-runner.mjs";
 
 export function handleIncomingChat(state, incoming, options = {}) {
@@ -107,6 +107,13 @@ function handleGrandCommand(state, command, actor, options) {
     throw new Error("GitHub sync is available through the running Grand server. Use: grand github sync owner/repo");
   }
 
+  if (command.name === "github_status") {
+    return {
+      kind: "github_status",
+      reply: formatGitHubStatusReply(options.github)
+    };
+  }
+
   if (command.name === "github_issue") {
     throw new Error("GitHub issue creation is available through the running Grand server. Use: grand github issue <title>");
   }
@@ -194,7 +201,35 @@ async function handleGrandCommandAsync(state, command, actor, options) {
     };
   }
 
+  if (command.name === "github_status") {
+    return {
+      kind: "github_status",
+      reply: formatGitHubStatusReply(options.github)
+    };
+  }
+
   if (command.name === "github_issue") {
+    if (!options.github?.token && !options.github?.createIssue) {
+      const result = createGitHubIssueDraftTask(
+        state,
+        {
+          repo: command.repo || options.github?.repo,
+          title: command.title,
+          actor
+        },
+        {
+          clock: options.clock
+        }
+      );
+
+      return {
+        kind: "github_issue_draft",
+        result,
+        metrics: getMetrics(state),
+        reply: formatGitHubIssueDraftReply(result)
+      };
+    }
+
     const result = await createGitHubIssueTask(
       state,
       {
@@ -294,6 +329,13 @@ function normalizeGrandCommand(rawName, rawArgument) {
       return {
         name: "github_sync",
         repo: rest[0] || null
+      };
+    }
+
+    if (normalizedAction === "status" || normalizedAction === "config" || normalizedAction === "auth") {
+      return {
+        name: "github_status",
+        taskId: null
       };
     }
 
@@ -492,11 +534,34 @@ function formatGitHubSyncReply(result) {
   return lines.join("\n");
 }
 
+function formatGitHubStatusReply(github = {}) {
+  const repo = github.repo || "not configured";
+  const tokenConfigured = Boolean(github.token);
+  const tokenSource = github.tokenSource || (tokenConfigured ? "configured" : "missing");
+
+  return [
+    "GitHub config",
+    `Repo: ${repo}`,
+    `Issue sync: ${repo === "not configured" ? "not ready" : "ready"}`,
+    `Issue creation: ${tokenConfigured ? `ready (${tokenSource})` : "draft-only until GITHUB_TOKEN or GH_TOKEN is set"}`,
+    `Sync limit: ${github.limit || 10}`
+  ].join("\n");
+}
+
 function formatGitHubIssueCreatedReply(result) {
   return [
     `GitHub issue created: ${result.repo}#${result.issue.number}`,
     result.issue.html_url,
     `Tracked as ${result.task.id}: ${result.task.title}`,
+    `Inspect: grand task ${result.task.id}`
+  ].join("\n");
+}
+
+function formatGitHubIssueDraftReply(result) {
+  return [
+    `GitHub issue draft saved for ${result.repo}`,
+    `Task: ${result.task.id} · ${result.task.title}`,
+    "Issue creation needs GITHUB_TOKEN or GH_TOKEN.",
     `Inspect: grand task ${result.task.id}`
   ].join("\n");
 }
@@ -537,6 +602,7 @@ function formatHelpReply() {
     "grand status",
     "grand report",
     "grand next",
+    "grand github status",
     "grand github sync",
     "grand github issue <title>",
     "grand list",

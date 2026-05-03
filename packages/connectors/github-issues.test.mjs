@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createGrandState } from "../core/task-engine.mjs";
-import { createGitHubIssueTask, parseGitHubRepo, syncGitHubIssuesToTasks } from "./github-issues.mjs";
+import { createGitHubIssueDraftTask, createGitHubIssueTask, parseGitHubRepo, syncGitHubIssuesToTasks } from "./github-issues.mjs";
 
 test("parses GitHub repo references", () => {
   assert.deepEqual(parseGitHubRepo("Evode-Manirahari/Grand-"), {
@@ -77,5 +77,26 @@ test("creates a GitHub issue and tracks it as a Grand task", async () => {
   assert.equal(result.createdTask, true);
   assert.equal(result.task.source.channel, "github");
   assert.equal(result.task.source.url, "https://github.com/Evode-Manirahari/Grand-/issues/8");
+  assert.equal(state.tasks.length, 1);
+});
+
+test("creates a local GitHub issue draft task", () => {
+  const state = createGrandState(new Date("2026-05-02T12:00:00Z"));
+  const result = createGitHubIssueDraftTask(
+    state,
+    {
+      repo: "Evode-Manirahari/Grand-",
+      title: "Add token setup checklist",
+      actor: "owner"
+    },
+    {
+      clock: new Date("2026-05-02T12:09:00Z")
+    }
+  );
+
+  assert.equal(result.repo, "Evode-Manirahari/Grand-");
+  assert.equal(result.title, "Add token setup checklist");
+  assert.equal(result.task.source.channel, "github");
+  assert.match(result.task.source.text, /local draft/);
   assert.equal(state.tasks.length, 1);
 });

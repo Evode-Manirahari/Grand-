@@ -59,6 +59,7 @@ Useful Telegram commands:
 grand status
 grand report
 grand next
+grand github status
 grand github sync
 grand github issue <title>
 grand list
@@ -78,6 +79,7 @@ grand done <task-id>
 - Telegram command surface for listing, approving, rejecting, and running work.
 - GitHub Issues sync that imports open issues as deduped Grand tasks.
 - GitHub issue creation from Telegram when `GITHUB_TOKEN` or `GH_TOKEN` is configured.
+- Local GitHub issue drafts when creation auth is not configured yet.
 - Task engine that extracts work from inbound messages.
 - Approval states for risky actions such as refunds, payments, sends, deletes,
   purchases, exports, and external changes.

@@ -131,6 +131,32 @@ export async function createGitHubIssueTask(state, input, options = {}) {
   };
 }
 
+export function createGitHubIssueDraftTask(state, input, options = {}) {
+  const parsed = parseGitHubRepo(input.repo || options.repo);
+  const title = requireIssueTitle(input.title);
+  const task = createTaskFromMessage(
+    state,
+    {
+      channel: "github",
+      from: input.actor || "operator",
+      text: [
+        `Draft GitHub issue in ${parsed.fullName}: ${title}`,
+        "",
+        "This is a local draft because GitHub issue creation is not configured.",
+        "Set GITHUB_TOKEN or GH_TOKEN, then create the issue from this draft."
+      ].join("\n"),
+      url: null
+    },
+    { clock: options.clock }
+  );
+
+  return {
+    repo: parsed.fullName,
+    title,
+    task
+  };
+}
+
 export function trackGitHubIssueTask(state, repo, issue, options = {}) {
   const parsed = parseGitHubRepo(repo);
   const url = issue.html_url || `https://github.com/${parsed.fullName}/issues/${issue.number}`;
